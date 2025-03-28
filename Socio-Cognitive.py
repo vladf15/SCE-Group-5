@@ -98,20 +98,7 @@ def speak_text(text, interrupt=True):
         tts_engine.stop()
         
     text = format_for_speech(text)
-    
-    #don't read very long texts entirely - just the first few sentences
-    if len(text) > 500:
-        sentences = text.split('.')
-        shortened_text = '.'.join(sentences[:5]) + '.'
-        tts_engine.say(shortened_text)
-        tts_engine.say("I'll continue reading if you press Enter.")
-        tts_engine.runAndWait()
-        input("Press Enter to continue reading...")
-        remaining_text = '.'.join(sentences[5:]) + '.'
-        tts_engine.say(remaining_text)
-    else:
-        tts_engine.say(text)
-    
+    tts_engine.say(text)
     tts_engine.runAndWait()
 
 
@@ -167,18 +154,56 @@ class TopicManager:
         print("Topic data saved successfully")
     
     def add_topic_rating(self, topic, effectiveness):
-        """Record a new effectiveness rating for a topic"""
-        if topic not in self.topic_ratings:
-            self.topic_ratings[topic] = []
+        """Record a new effectiveness rating for a topic, matching to existing topics where possible"""
+        # First, check if this exact topic already exists
+        if topic in self.topic_ratings:
+            self.topic_ratings[topic].append(effectiveness)
+            matched_topic = topic
+        else:
+            # Get all existing topics (both from ratings and predefined categories)
+            all_existing_topics = list(self.topic_ratings.keys()) + ALZHEIMERS_TOPIC_CATEGORIES
+            all_existing_topics = list(set(all_existing_topics))  # Remove duplicates
+            
+            # Try to find a matching topic
+            input_words = normalize_text(topic)
+            best_match = None
+            best_score = 0.3  # Minimum threshold for considering a match
+            
+            for existing_topic in all_existing_topics:
+                existing_words = normalize_text(existing_topic)
+                similarity = get_similarity_score(existing_words, input_words)
+                
+                if similarity > best_score:
+                    best_score = similarity
+                    best_match = existing_topic
+            
+            # If we found a matching topic, use it instead
+            if best_match:
+                print(f"Matched '{topic}' to existing topic: '{best_match}'")
+                speak_text(f"I've matched this to the existing topic: {best_match}")
+                
+                # Initialize if this is a predefined topic not yet rated
+                if best_match not in self.topic_ratings:
+                    self.topic_ratings[best_match] = []
+                    
+                self.topic_ratings[best_match].append(effectiveness)
+                matched_topic = best_match
+            else:
+                # No match found - create a new topic
+                print(f"Creating new topic: '{topic}'")
+                self.topic_ratings[topic] = [effectiveness]
+                matched_topic = topic
         
-        self.topic_ratings[topic].append(effectiveness)
+        # Record in history with the matched or new topic
         self.topic_history.append({
-            "topic": topic, 
+            "topic": matched_topic, 
             "effectiveness": effectiveness,
             "timestamp": datetime.now().isoformat()
         })
+        
         self.save_data()
-    
+        return matched_topic  # Return the matched topic for feedback
+        
     def get_average_rating(self, topic):
         """Calculate average effectiveness rating for a topic"""
         if topic in self.topic_ratings and self.topic_ratings[topic]:
@@ -254,17 +279,17 @@ class TopicManager:
         try:
             print(f"Preparing prompt for topic: {topic}")
             prompt = ChatPromptTemplate.from_template(
-                """You are assisting a caregiver for an Alzheimer's patient.
+                """You are assisting a person with Alzheimer's.
                 Generate 3 specific, engaging questions about the topic: {topic}
                 
                 These questions should:
                 1. Focus on long-term memories (which are better preserved in Alzheimer's)
-                2. Be simple and clear
+                2. Be simple, brief and clear
                 3. Evoke positive emotions when possible
                 4. Not test memory or recent events
                 5. Do not explain each suggestion, just provide the questions
                 
-                Format as a numbered list. Do not add extra information.
+                Format as a numbered list. Do not preface the suggestions. Do not add extra information.
                 """
             )
             
@@ -290,6 +315,116 @@ class TopicManager:
         return f"""1. What are your favorite memories related to {topic}?
     2. How did {topic} play a role in your early life?
     3. What feelings come to mind when you think about {topic}?"""
+
+def listen_to_conversation(duration=60):
+    """Listen to a conversation for the specified duration and transcribe it"""
+    print(f"Listening to conversation for {duration} seconds...")
+    speak_text("I'll listen to your conversation now, please speak naturally.")
+    
+    conversation_text = []
+    end_time = time.time() + duration
+    
+    # Set up microphone once at the beginning - critical for continuous listening
+    with sr.Microphone() as source:
+        # Initial adjustment for ambient noise
+        print("Adjusting for ambient noise...")
+        recognizer.adjust_for_ambient_noise(source, duration=1)
+        
+        print("Now listening continuously...")
+        
+        # Keep listening until time is up
+        while time.time() < end_time:
+            remaining = int(end_time - time.time())
+            if remaining % 10 == 0 and remaining > 0:  # Show time remaining every 10 seconds
+                print(f"Still listening... ({remaining} seconds remaining)")
+            
+            try:
+                # Use a shorter timeout to catch more speech segments
+                audio = recognizer.listen(source, timeout=2, phrase_time_limit=15)
+                
+                try:
+                    text = recognizer.recognize_google(audio)
+                    print(f"Heard: {text}")
+                    conversation_text.append(text)
+                    
+                except sr.UnknownValueError:
+                    # Speech wasn't clear enough, continue without interruption
+                    pass
+                except sr.RequestError as e:
+                    print(f"Speech service error: {e}")
+                
+                # Short pause to prevent CPU overuse
+                time.sleep(0.1)
+                
+            except sr.WaitTimeoutError:
+                # No speech detected in this window, continue listening
+                continue
+            except Exception as e:
+                print(f"Error during listening: {e}")
+    
+    full_conversation = " ".join(conversation_text)
+    print(f"Finished listening. Captured {len(conversation_text)} speech segments.")
+    print(f"Total conversation length: {len(full_conversation)} characters")
+    
+    return full_conversation
+
+def generate_followup_questions(conversation_text, original_topic):
+    """Generate follow-up questions based on the recorded conversation"""
+    try:
+        print("Analyzing conversation to create follow-up questions...")
+        
+        # Trim the conversation if it's very long
+        if len(conversation_text) > 2000:
+            conversation_text = conversation_text[:2000] + "..."
+            print("Conversation truncated to 2000 characters for processing")
+        
+        # Prepare prompt for LLM 
+        prompt = ChatPromptTemplate.from_template(
+            """You are assisting a oerson with Alzheimer's who is having a conversation with someone.
+            
+            The initial topic was: {original_topic}
+            
+            Below is a transcript of the conversation:
+            ---
+            {conversation}
+            ---
+            
+            Based on what they discussed, suggest 3 follow-up questions that can help continue the conversation.
+            
+            Your follow-up questions should:
+            1. Connect directly to specific things mentioned in their conversation
+            2. Focus on long-term memories (which are better preserved in Alzheimer's)
+            3. Be simple, brief and clear
+            4. Evoke positive emotions when possible
+            5. Not test memory or recent events
+            
+            Format as a numbered list. Do not preface the suggestions or address the user directly. Do not add extra information.
+            """
+        )
+        
+        message = prompt.format_messages(
+            original_topic=original_topic,
+            conversation=conversation_text
+        )
+        
+        print("Requesting follow-up questions from language model...")
+        try:
+            response = model.invoke(message)
+            print("Response received")
+            return response.content
+        except Exception as e:
+            print(f"Error generating follow-up questions: {e}")
+            # Fallback if the LLM fails
+            return f"""1. Could you tell me more about what you just mentioned?
+                        2. How did you feel about these experiences?
+                        3. What other memories does this bring to mind?"""
+            
+    except Exception as e:
+        print(f"Unexpected error in generate_followup_questions: {e}")
+        return f"""1. Could you tell me more about what you just mentioned?
+                2. How did you feel about these experiences?
+                3. What other memories does this bring to mind?"""
+
 def listen_for_speech(timeout=5):
     """Listen for speech input and convert to text"""
     print("Listening... (speak now)")
@@ -374,7 +509,7 @@ def main():
         print("3. View top performing topics")
         print("4. Exit")
         
-        speak_text("\nWhat would you like to do?\n1. Get topic suggestions\n2. Report topic effectiveness\n3. View top performing topics\n4. Exit")
+        speak_text("\nWhat would you like to do?")
         
         # Get choice with voice or keyboard input
         choice_input = get_voice_input("Say or type your choice (1-4)")
@@ -390,7 +525,9 @@ def main():
                 choice = "2"
             elif "three" in choice_input.lower() or "view" in choice_input.lower() or "performing" in choice_input.lower():
                 choice = "3"
-            elif "four" in choice_input.lower() or "exit" in choice_input.lower() or "quit" in choice_input.lower():
+            elif any(word in choice_input.lower() for word in ["four", "exit", "quit", "leave", "goodbye", "bye", 
+                                              "stop", "end", "finish", "done", "leave me alone",
+                                              "go away", "that's all", "shut down", "close"]):
                 choice = "4"
         
         if choice == "1":
@@ -473,10 +610,36 @@ def main():
             if topic_idx is not None:
                 selected_topic = suggestions[topic_idx]
                 print(f"\nGenerating questions for: {selected_topic}")
-                speak_text(f"\nGenerating questions on the topic: {suggestions[topic_idx]}")
+                speak_text(f"\nGenerating questions on the topic: {selected_topic}")
                 questions = topic_manager.generate_specific_questions(selected_topic)
                 print(questions)
                 speak_text(questions)
+                
+                # Add option to listen to conversation and provide follow-up questions
+                listen_prompt = "\nWould you like me to listen to your conversation and suggest follow-up questions?"
+                print(listen_prompt + " (yes/no)")
+                speak_text(listen_prompt)
+                listen_response = get_voice_input("")
+                
+                if listen_response and any(word in listen_response.lower() for word in ["yes", "yeah", "sure", "okay"]):
+                    # Listen to the conversation about the topic
+                    conversation_text = listen_to_conversation(duration=60) #listen for a minute
+                    
+                    # If we captured some conversation
+                    if conversation_text and len(conversation_text) > 20:  # Make sure we got something meaningful
+                        print("\nAnalyzing your conversation...")
+                        speak_text("Thank you for letting me listen. I'll suggest some follow-up questions based on what you discussed.")
+                        
+                        # Generate follow-up questions based on the conversation
+                        followup_questions = generate_followup_questions(conversation_text, selected_topic)
+                        
+                        print("\nBased on your conversation, here are follow-up questions:")
+                        print(followup_questions)
+                        speak_text("Based on your conversation, here are some follow-up questions:")
+                        speak_text(followup_questions)
+                    else:
+                        print("\nNot enough conversation was detected to generate follow-up questions.")
+                        speak_text("I couldn't capture enough of your conversation to generate follow-up questions.")
                 
                 # Add a pause so user can read the questions
                 input("\nPress Enter to continue...")
@@ -491,8 +654,8 @@ def main():
                 time.sleep(3)
         elif choice == "2":
             # Report effectiveness
-            speak_text("What topic did you discuss with the patient?")
-            topic = get_voice_input("\nWhat topic did you discuss with the patient?")
+            speak_text("What topic did you discuss?")
+            topic = get_voice_input("\nWhat topic did you discuss?")
             
             speak_text("How effective was this topic in stimulating conversation, on a scale of 1 to 10?")
             print("\nHow effective was this topic in stimulating conversation? (1-10)")
@@ -516,8 +679,15 @@ def main():
                 speak_text("No topic ratings have been recorded yet")
         
         elif choice == "4":
-            print("\nExiting. Your topic data has been saved.")
-            speak_text("Exiting. Your topic data has been saved.")
+            if "leave" in choice_input.lower() or "go away" in choice_input.lower():
+                print("\nI understand you want some space. Exiting now.")
+                speak_text("I understand you want some space. Exiting now.")
+            elif "goodbye" in choice_input.lower() or "bye" in choice_input.lower():
+                print("\nGoodbye! Your topic data has been saved.")
+                speak_text("Goodbye! Your topic data has been saved.")
+            else:
+                print("\nExiting. Your topic data has been saved.")
+                speak_text("Exiting. Your topic data has been saved.")
             break
         
         else:
