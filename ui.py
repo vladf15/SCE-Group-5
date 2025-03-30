@@ -219,7 +219,7 @@ class ConversationAssistantGUI:
         
         # Speak welcome if TTS is enabled
         if tts_enabled:
-            speak_text_async("What would you like to do?")
+            speak_text_async("Welcome! What would you like to do?")
         
         # Create main menu buttons - USING MEDIUM BUTTON STYLE
         ctk.CTkButton(self.main_button_frame, text="Get Topic Suggestions", 
@@ -349,6 +349,10 @@ class ConversationAssistantGUI:
                                  font=self.small_button_font, height=self.small_button_height,
                                 command=self.show_main_menu)
         back_btn.pack(side=tk.LEFT, padx=10)
+        
+        if self.voice_enabled:
+            threading.Thread(target=self.listen_for_topic_choice, 
+                          args=(suggestions,), daemon=True).start()
     
     def show_more_topics(self, suggestions, start_idx):
         # Clear current topic buttons
@@ -547,8 +551,6 @@ class ConversationAssistantGUI:
                 print("\n" + "="*50)
                 print(f"Starting conversation recording for topic: {self.selected_topic}")
                 print("="*50)
-                
-                # Call the original listen_to_conversation function
                 recorded_text = listen_to_conversation(duration=duration)
                 
                 # Check if we should process the recording
@@ -558,8 +560,6 @@ class ConversationAssistantGUI:
                     self.conversation_text = recorded_text
                     print(f"Recorded conversation text: {len(recorded_text)} characters")
                     print(f"Preview: {recorded_text[:50] if len(recorded_text) > 50 else recorded_text}")
-                    
-                    # NOW call auto_stop_recording from the recording thread when we're ready
                     self.root.after(0, self.auto_stop_recording)
                 else:
                     print("Recording was manually stopped - discarding further results")
