@@ -110,9 +110,7 @@ class ConversationAssistantGUI:
         self.progress_frame.pack_forget()
         
         # Action button frame for context-specific actions
-        self.action_button_frame = ScrollableFrame(content_container, 
-                                               min_height=120,  # Minimum height
-                                               height=0)  # Allow it to be sized by parent
+        self.action_button_frame = ScrollableFrame(content_container, height=150)  
         self.action_button_frame.pack(fill=tk.BOTH, expand=True, pady=10) 
         
         # Text input area
@@ -865,13 +863,13 @@ class ConversationAssistantGUI:
         
         # Disable all rating buttons to prevent multiple submissions
         for widget in self.action_button_frame.winfo_children():
-            if isinstance(widget, ctk.CTkFrame):  # This is our rating_frame
+            if isinstance(widget, ctk.CTkFrame):
                 for button in widget.winfo_children():
                     button.configure(state="disabled")
     
     def report_topic_rating(self, rating):
         """Process a rating for the currently selected topic"""
-        # FIRST: Clear the button frames to ensure new buttons are visible
+        # Clear the button frames to ensure new buttons are visible
         self.clear_button_frames()
         
         if rating is not None: 
@@ -916,7 +914,7 @@ class ConversationAssistantGUI:
         top_topics = self.topic_manager.get_top_topics(5)
         
         if top_topics:
-            self.write_to_output("\nTop performing topics:", clear=True)
+            self.write_to_output("Top performing topics:", clear=True)
             if tts_enabled:
                 speak_text_async("Here is a list of the top performing topics:")
             
