@@ -438,7 +438,7 @@ class ConversationAssistantGUI:
         self.clear_button_frames()
         
         # Show selected topic and generate questions
-        self.write_to_output(f"\nGenerating questions for: {topic}", clear=True)
+        self.write_to_output(f"Generating questions for: {topic}", clear=True)
         if tts_enabled:
             speak_text_async(f"Generating questions on the topic: {topic}")
         
@@ -725,7 +725,7 @@ class ConversationAssistantGUI:
         if tts_enabled:
             try:
                 speak_text_async("Based on your conversation, here are some follow-up questions:")
-                speak_text_async(followup_questions)
+                #speak_text_async(followup_questions)
             except Exception as e:
                 print(f"TTS error (non-critical): {e}")
         

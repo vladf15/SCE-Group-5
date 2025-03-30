@@ -351,55 +351,118 @@ def listen_to_conversation(duration=60):
     """Listen to a conversation for the specified duration and transcribe it"""
     print(f"Listening to conversation for {duration} seconds...")
     
-    # Break recording into smaller chunks for better processing
-    # Google Speech API works best with chunks under 20 seconds
-    chunk_size = 15  # seconds per chunk
+    # Break recording into smaller chunks with OVERLAP to avoid cutting sentences
+    chunk_size = 13  # Base chunk size
+    overlap = 3      # Seconds of overlap between chunks
     
-    # Calculate number of chunks needed
-    num_chunks = duration // chunk_size
-    if duration % chunk_size > 0:
-        num_chunks += 1
+    # Calculate effective chunk progression (how much we advance each chunk)
+    chunk_advance = chunk_size - overlap
+    
+    # Calculate number of chunks needed with overlap
+    num_chunks = (duration // chunk_advance) + (1 if duration % chunk_advance > 0 else 0)
     
     all_text = []
+    all_segments = {}  # Dictionary to store segments with their start times
     
     with sr.Microphone() as source:
-        # Configure recognizer for higher sensitivity
+        # Configure recognizer
         recognizer = sr.Recognizer()
         
-        # Adjust for ambient noise to set the energy threshold
+        # Adjust for ambient noise
+        print("Adjusting for ambient noise...")
         recognizer.adjust_for_ambient_noise(source, duration=1)
-        recognizer.energy_threshold = 200
+        recognizer.energy_threshold = 200  # Keep same sensitivity as other functions
         
-        print(f"Now listening continuously for {duration} seconds (in {num_chunks} chunks)...")
-        print(f"Sensitivity set to HIGH (threshold: {recognizer.energy_threshold})")
+        start_time = time.time()  # Track when we started recording
         
-        # Record in chunks to improve recognition quality
+        print(f"Now listening with overlapping chunks for {duration} seconds...")
+        
+        # Record in overlapping chunks to improve recognition quality
         for i in range(num_chunks):
-            # Calculate duration for this chunk (last chunk might be shorter)
-            current_chunk_duration = min(chunk_size, duration - (i * chunk_size))
-            if current_chunk_duration <= 0:
+            # Calculate chunk start and end times
+            chunk_start = i * chunk_advance
+            chunk_end = min(chunk_start + chunk_size, duration)
+            
+            # Skip if this chunk would start after the duration
+            if chunk_start >= duration:
                 break
-                
-            print(f"Recording chunk {i+1}/{num_chunks} ({current_chunk_duration} seconds)...")
+            
+            # Calculate how long to wait before starting this chunk's recording
+            wait_time = chunk_start - (time.time() - start_time)
+            if wait_time > 0:
+                print(f"Waiting {wait_time:.1f}s until next chunk...")
+                time.sleep(wait_time)
+            
+            # Calculate actual duration for this chunk
+            current_chunk_duration = chunk_end - chunk_start
+            
+            print(f"Recording chunk {i+1}/{num_chunks} " +
+                  f"(seconds {chunk_start:.1f}-{chunk_end:.1f}, duration {current_chunk_duration:.1f}s)...")
+            
+            # Record this chunk
             audio = recognizer.record(source, duration=current_chunk_duration)
+            chunk_actual_start = time.time() - start_time
             
             try:
-                # Process this chunk with Google's API
+                # Process this chunk
                 text = recognizer.recognize_google(audio)
-                all_text.append(text)
-                print(f"Chunk {i+1} recognized: {len(text)} characters")
+                
+                # Store segment with its approximate start time
+                all_segments[chunk_actual_start] = text
+                
+                print(f"✓ Chunk {i+1} recognized: {len(text)} characters")
                 if len(text) > 30:
-                    print(f"Preview: {text[:30]}...")
+                    print(f"  Preview: {text[:30]}...")
                 else:
-                    print(f"Full text: {text}")
+                    print(f"  Full text: {text}")
                 
             except sr.UnknownValueError:
-                print(f"Could not understand audio in chunk {i+1}")
+                print(f"⚠ No speech detected in chunk {i+1}")
             except sr.RequestError as e:
-                print(f"Google Speech API error in chunk {i+1}: {e}")
+                print(f"⚠ Google Speech API error in chunk {i+1}: {e}")
     
-    # Combine all recognized text
-    full_text = " ".join(all_text)
+    # Process all segments in order
+    ordered_segments = sorted(all_segments.items())
+    
+    # Merge overlapping segments intelligently
+    processed_text = []
+    for i, (start_time, text) in enumerate(ordered_segments):
+        if i == 0:
+            # First segment always included fully
+            processed_text.append(text)
+        else:
+            # Check for overlaps with previous segments
+            prev_text = processed_text[-1]
+            
+            # Try to find where to join the segments
+            # Look for shared phrases/words between the end of prev and start of current
+            overlap_found = False
+            
+            # Check for overlap of phrases (at least 3 words)
+            prev_words = prev_text.split()
+            curr_words = text.split()
+            
+            # Try different overlap lengths
+            for overlap_len in range(5, 2, -1):  # Try 5, 4, 3 word overlaps
+                if len(prev_words) >= overlap_len and len(curr_words) >= overlap_len:
+                    for j in range(len(prev_words) - overlap_len + 1):
+                        overlap_phrase = " ".join(prev_words[j:j+overlap_len])
+                        if text.startswith(overlap_phrase):
+                            # Found overlap, join at this point
+                            processed_text[-1] = prev_text[:prev_text.find(overlap_phrase)]
+                            processed_text.append(text)
+                            overlap_found = True
+                            print(f"Found {overlap_len}-word overlap: '{overlap_phrase}'")
+                            break
+                if overlap_found:
+                    break
+            
+            if not overlap_found:
+                # No significant overlap found, just append
+                processed_text.append(text)
+    
+    # Combine all processed text
+    full_text = " ".join(processed_text)
     print(f"Finished listening. Total transcription: {len(full_text)} characters")
     
     return full_text
