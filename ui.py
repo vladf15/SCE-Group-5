@@ -576,6 +576,7 @@ class ConversationAssistantGUI:
                     
                     self.write_to_output(f"\nError during recording: {str(e)}")
                     ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                                  font=self.small_button_font, height=self.small_button_height,
                                 command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
         
         # Start recording in separate thread
@@ -620,12 +621,14 @@ class ConversationAssistantGUI:
                 traceback.print_exc()
                 self.write_to_output(f"\nError analyzing conversation: {str(e)}")
                 ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                                font=self.small_button_font, height=self.small_button_height,
                             command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
         else:
             self.write_to_output("\nNot enough conversation was detected to generate follow-up questions.")
             if tts_enabled:
                 speak_text_async("I couldn't capture enough of your conversation to generate follow-up questions.")
             ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                            font=self.small_button_font, height=self.small_button_height,
                         command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
     
     def stop_recording(self):
@@ -669,6 +672,7 @@ class ConversationAssistantGUI:
             else:
                 self.write_to_output("\nNot enough conversation was recorded to generate follow-up questions.")
                 ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                                font=self.small_button_font, height=self.small_button_height,
                             command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
         
         # Give recording thread a moment to finish and update conversation_text
@@ -705,6 +709,7 @@ class ConversationAssistantGUI:
             traceback.print_exc()
             self.root.after(0, lambda: self.write_to_output(f"\nError generating follow-up questions: {str(e)}"))
             self.root.after(0, lambda: ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                                        font=self.small_button_font, height=self.small_button_height,
                                         command=self.show_main_menu).pack(side=tk.LEFT, padx=10))
     
     def show_followup_questions(self, followup_questions):

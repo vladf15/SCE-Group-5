@@ -351,53 +351,58 @@ def listen_to_conversation(duration=60):
     """Listen to a conversation for the specified duration and transcribe it"""
     print(f"Listening to conversation for {duration} seconds...")
     
-    conversation_text = []
-    end_time = time.time() + duration
+    # Break recording into smaller chunks for better processing
+    # Google Speech API works best with chunks under 20 seconds
+    chunk_size = 15  # seconds per chunk
     
-    # Set up microphone once at the beginning - critical for continuous listening
+    # Calculate number of chunks needed
+    num_chunks = duration // chunk_size
+    if duration % chunk_size > 0:
+        num_chunks += 1
+    
+    all_text = []
+    
     with sr.Microphone() as source:
-        # Initial adjustment for ambient noise
-        print("Adjusting for ambient noise...")
+        # Configure recognizer for higher sensitivity
+        recognizer = sr.Recognizer()
+        
+        # Adjust for ambient noise to set the energy threshold
         recognizer.adjust_for_ambient_noise(source, duration=1)
+        recognizer.energy_threshold = 200
         
-        print("Now listening continuously...")
+        print(f"Now listening continuously for {duration} seconds (in {num_chunks} chunks)...")
+        print(f"Sensitivity set to HIGH (threshold: {recognizer.energy_threshold})")
         
-        # Keep listening until time is up
-        while time.time() < end_time:
-            remaining = int(end_time - time.time())
-            if remaining % 10 == 0 and remaining > 0:  # Show time remaining every 10 seconds
-                print(f"Still listening... ({remaining} seconds remaining)")
+        # Record in chunks to improve recognition quality
+        for i in range(num_chunks):
+            # Calculate duration for this chunk (last chunk might be shorter)
+            current_chunk_duration = min(chunk_size, duration - (i * chunk_size))
+            if current_chunk_duration <= 0:
+                break
+                
+            print(f"Recording chunk {i+1}/{num_chunks} ({current_chunk_duration} seconds)...")
+            audio = recognizer.record(source, duration=current_chunk_duration)
             
             try:
-                # Use a shorter timeout to catch more speech segments
-                audio = recognizer.listen(source, timeout=2, phrase_time_limit=15)
+                # Process this chunk with Google's API
+                text = recognizer.recognize_google(audio)
+                all_text.append(text)
+                print(f"Chunk {i+1} recognized: {len(text)} characters")
+                if len(text) > 30:
+                    print(f"Preview: {text[:30]}...")
+                else:
+                    print(f"Full text: {text}")
                 
-                try:
-                    text = recognizer.recognize_google(audio)
-                    print(f"Heard: {text}")
-                    conversation_text.append(text)
-                    
-                except sr.UnknownValueError:
-                    # Speech wasn't clear enough, continue without interruption
-                    pass
-                except sr.RequestError as e:
-                    print(f"Speech service error: {e}")
-                
-                # Short pause to prevent CPU overuse
-                time.sleep(0.1)
-                
-            except sr.WaitTimeoutError:
-                # No speech detected in this window, continue listening
-                continue
-            except Exception as e:
-                print(f"Error during listening: {e}")
+            except sr.UnknownValueError:
+                print(f"Could not understand audio in chunk {i+1}")
+            except sr.RequestError as e:
+                print(f"Google Speech API error in chunk {i+1}: {e}")
     
-    full_conversation = " ".join(conversation_text)
-    print(f"Finished listening. Captured {len(conversation_text)} speech segments.")
-    print(f"Total conversation length: {len(full_conversation)} characters")
+    # Combine all recognized text
+    full_text = " ".join(all_text)
+    print(f"Finished listening. Total transcription: {len(full_text)} characters")
     
-    return full_conversation
-
+    return full_text
 
 def generate_followup_questions(conversation_text, original_topic):
     """Generate follow-up questions based on the recorded conversation"""
@@ -461,6 +466,7 @@ def listen_for_speech(timeout=5):
     print("Listening... (speak now)")
     with sr.Microphone() as source:
         recognizer.adjust_for_ambient_noise(source, duration=1)
+        recognizer.energy_threshold = 200
         try:
             audio = recognizer.listen(source, timeout=timeout)
             print("Processing speech...")
