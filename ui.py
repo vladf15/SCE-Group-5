@@ -21,8 +21,6 @@ class ConversationAssistantGUI:
         self.root.title("EverMind")
         self.root.geometry("900x700")
         self.root.minsize(800, 600)
-        
-        # Remove the white border by configuring the root window
         self.root.configure(bg="#242424" if ctk.get_appearance_mode() == "Dark" else "#ebebeb")
         
         self.is_recording = False
@@ -70,19 +68,19 @@ class ConversationAssistantGUI:
         
         # Title
         title_label = ctk.CTkLabel(content_container, text="EverMind", 
-                               font=ctk.CTkFont(size=24, weight="bold"))
+                               font=ctk.CTkFont(size=40, weight="bold"))
         title_label.pack(pady=15)
         
         # Output display area with scrollbar - MODIFIED TO BE SMALLER
         self.output_frame = ctk.CTkFrame(content_container)
-        self.output_frame.pack(fill=tk.X, expand=False, pady=10)  # Changed from BOTH to X and expand=False
+        self.output_frame.pack(fill=tk.X, expand=False, pady=10) 
         
         # Create a fixed height container for the output
         output_container = ctk.CTkFrame(self.output_frame)
         output_container.pack(fill=tk.BOTH, padx=5, pady=5)
         
         self.output_area = scrolledtext.ScrolledText(output_container, wrap=tk.WORD, 
-                                                  width=80, height=10,  # Reduced height from 12 to 10 
+                                                  width=80, height=10,  
                                                   font=("Segoe UI", 12))
         self.output_area.pack(fill=tk.BOTH, padx=5, pady=5)
         self.output_area.configure(state=tk.DISABLED)
@@ -152,13 +150,14 @@ class ConversationAssistantGUI:
         self.appearance_mode_menu.set("System")
         
         # Voice toggle switch
-        self.voice_toggle_label = ctk.CTkLabel(self.controls_frame, text="Voice Input:")
-        self.voice_toggle_label.pack(side=tk.RIGHT, padx=10)
-        
         self.voice_toggle_switch = ctk.CTkSwitch(self.controls_frame, text="Enabled", 
                                              command=self.toggle_voice)
         self.voice_toggle_switch.pack(side=tk.RIGHT, padx=10)
         self.voice_toggle_switch.select()  # Default to enabled
+        self.voice_toggle_label = ctk.CTkLabel(self.controls_frame, text="Voice Input:")
+        self.voice_toggle_label.pack(side=tk.RIGHT, padx=10)
+        
+        
     
     def change_appearance_mode(self, new_appearance_mode):
         ctk.set_appearance_mode(new_appearance_mode)
@@ -177,17 +176,17 @@ class ConversationAssistantGUI:
         for widget in self.main_button_frame.winfo_children():
             widget.destroy()
         
-        # Clear action buttons - for CTkScrollableFrame we need to use this approach
+        # Clear action buttons from scrollable frame
         for widget in self.action_button_frame.winfo_children():
             widget.destroy()
     
     def write_to_output(self, text, clear=False):
-        self.output_area.configure(state=tk.NORMAL)  # Changed from config to configure
+        self.output_area.configure(state=tk.NORMAL) 
         if clear:
             self.output_area.delete(1.0, tk.END)
         self.output_area.insert(tk.END, text + "\n")
         self.output_area.see(tk.END)
-        self.output_area.configure(state=tk.DISABLED)  # Changed from config to configure
+        self.output_area.configure(state=tk.DISABLED) 
     
     def show_main_menu(self):
         # Clean up before changing states
@@ -223,15 +222,15 @@ class ConversationAssistantGUI:
         
         ctk.CTkButton(self.main_button_frame, text="Report Topic Effectiveness", 
                    command=self.report_effectiveness,
-                   font=button_font, height=button_height).pack(side=tk.LEFT, expand=True, fill=tk.X)
+                   font=button_font, height=button_height).pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
         
         ctk.CTkButton(self.main_button_frame, text="View Top Performing Topics", 
                    command=self.view_top_topics,
-                   font=button_font, height=button_height).pack(side=tk.LEFT, expand=True, fill=tk.X)
+                   font=button_font, height=button_height).pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
         
         ctk.CTkButton(self.main_button_frame, text="Exit", 
                    command=self.exit_app,
-                   font=button_font, height=button_height).pack(side=tk.LEFT, expand=True, fill=tk.X)
+                   font=button_font, height=button_height).pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
         
         # If voice is enabled, start listening for voice command
         if self.voice_enabled:
@@ -324,16 +323,20 @@ class ConversationAssistantGUI:
         # Display instruction
         self.write_to_output("\nSelect a topic or enter a new one:")
         
+        button_font = ctk.CTkFont(size=14)
+        button_height = 30
         # Show topic selection buttons (first 5 only to avoid overcrowding)
         for i, topic in enumerate(suggestions[:5], 1):
-            btn = ctk.CTkButton(self.action_button_frame, text=f"{i}. {topic}", 
-                           command=lambda t=topic: self.select_topic(t))
+            btn = ctk.CTkButton(self.action_button_frame, text=f"{i}. {topic}",
+                                font=button_font, height=button_height,
+                                command=lambda t=topic: self.select_topic(t))
             btn.pack(fill=tk.X, pady=2)
         
         # Show "more topics" button if there are more than 5
         if len(suggestions) > 5:
-            more_btn = ctk.CTkButton(self.action_button_frame, text="More Topics...", 
-                                command=lambda: self.show_more_topics(suggestions, 5))
+            more_btn = ctk.CTkButton(self.action_button_frame, text="More Topics...",
+                                    font=button_font, height=button_height, 
+                                    command=lambda: self.show_more_topics(suggestions, 5))
             more_btn.pack(fill=tk.X, pady=2)
         
         # Show back button
@@ -343,10 +346,10 @@ class ConversationAssistantGUI:
         
         # Show input field for topic name entry - change the before parameter
         self.input_frame.pack(fill=tk.X, pady=5, before=self.main_button_frame)
-        self.input_label.configure(text="Enter topic:")  # Changed from config to configure
+        self.input_label.configure(text="Enter topic:") 
         self.input_entry.delete(0, tk.END)  # Clear any previous input
         
-        # Ensure the button command is properly bound
+        # Button to submit text input
         self.input_button.configure(command=self.submit_text_input)
         
         # If voice is enabled, start listening for topic choice
@@ -360,9 +363,12 @@ class ConversationAssistantGUI:
         
         # Show the next batch of topics (next 5 or remaining)
         end_idx = min(start_idx + 5, len(suggestions))
+        button_font = ctk.CTkFont(size=14)
+        button_height = 30
         for i, topic in enumerate(suggestions[start_idx:end_idx], start_idx+1):
-            btn = ctk.CTkButton(self.action_button_frame, text=f"{i}. {topic}", 
-                           command=lambda t=topic: self.select_topic(t))
+            btn = ctk.CTkButton(self.action_button_frame, text=f"{i}. {topic}",
+                                font=button_font, height=button_height,
+                                command=lambda t=topic: self.select_topic(t))
             btn.pack(fill=tk.X, pady=2)
         
         # Navigation buttons
@@ -450,23 +456,26 @@ class ConversationAssistantGUI:
         # Display the questions
         self.write_to_output(questions)
         
-        
-        #if tts_enabled:
-            #speak_text_async(questions)
-        
         # Ask if they want to listen to conversation
         self.write_to_output("\nWould you like me to listen to your conversation and suggest follow-up questions?")
         if tts_enabled:
             speak_text_async("Would you like me to listen to your conversation and suggest follow-up questions?")
         
-        # Yes/No buttons for listening to conversation
+        # Yes/No buttons for listening to conversation with CONSISTENT HEIGHT and FONT
+        button_font = ctk.CTkFont(size=16)
+        button_height = 50
+        
         yes_btn = ctk.CTkButton(self.action_button_frame, text="Yes", 
-                           command=lambda: self.handle_listen_response(True))
-        yes_btn.pack(side=tk.LEFT, padx=10, expand=True)
+                           command=lambda: self.handle_listen_response(True),
+                           font=button_font, 
+                           height=button_height)
+        yes_btn.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
         
         no_btn = ctk.CTkButton(self.action_button_frame, text="No", 
-                          command=lambda: self.handle_listen_response(False))
-        no_btn.pack(side=tk.LEFT, padx=10, expand=True)
+                          command=lambda: self.handle_listen_response(False),
+                          font=button_font, 
+                          height=button_height)
+        no_btn.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
         
         # If voice is enabled, start listening for yes/no
         if self.voice_enabled:
@@ -493,7 +502,6 @@ class ConversationAssistantGUI:
             if tts_enabled:
                 speak_text_async("I'll listen to your conversation now, please speak naturally.")
             
-            # FIX: Make progress bar visible with proper order
             self.progress_frame.pack(fill=tk.X, pady=5, after=self.output_frame)
             self.progress_label.configure(text=f"Recording: 0/{self.recording_duration}s")
             self.progress_bar.set(0)
@@ -601,7 +609,7 @@ class ConversationAssistantGUI:
         print(f"DEBUG: Text preview: {current_text[:100]}...")
         print(f"DEBUG: FULL TEXT: {current_text}")
         
-        # Process the results with the captured text - LOWERED THRESHOLD FROM 20 TO 5 CHARACTERS
+        # Process the results with the captured text
         if current_text and len(current_text) > 5:
             try:
                 self.write_to_output("\nAnalyzing your conversation...")
@@ -611,9 +619,8 @@ class ConversationAssistantGUI:
                 print(f"DEBUG: Calling generate_followup_questions with topic: {current_topic}")
                 followup_questions = generate_followup_questions(current_text, current_topic)
                 print(f"DEBUG: Generated follow-up questions: {followup_questions}")
-                
-                # Show follow-up questions directly instead of using the queue
                 self.show_followup_questions(followup_questions)
+                
             except Exception as e:
                 print(f"Error processing conversation: {e}")
                 import traceback
@@ -635,8 +642,7 @@ class ConversationAssistantGUI:
             
         print("Manual stop requested - stopping recording")
         
-        # Just to be safe, capture the current conversation text
-        # (this might be empty if no speech was detected yet)
+        # This saves current conversation text to prevent changes while it's being processed
         current_text = self.conversation_text
         current_topic = self.selected_topic
         
@@ -644,7 +650,7 @@ class ConversationAssistantGUI:
         self.is_recording = False
         self.manually_stopped = True
         
-        # Update UI immediately
+        # Update UI
         self.progress_frame.pack_forget() 
         self.remove_stop_recording_button()
         self.write_to_output("Recording stopped manually.")
@@ -742,13 +748,12 @@ class ConversationAssistantGUI:
         if tts_enabled:
             speak_text_async("What topic did you discuss?")
         
-        # Show input field
-        self.input_frame.pack(fill=tk.X, pady=5, before=self.controls_frame)
-        self.input_label.configure(text="Enter topic:")  # Changed from config to configure
+        self.input_frame.pack(fill=tk.X, pady=5)
+        self.input_label.configure(text="Enter topic:")
         self.input_entry.delete(0, tk.END)
         
         # Button to submit topic
-        self.input_button.configure(command=self.submit_topic_for_rating)  # Changed from config to configure
+        self.input_button.configure(command=self.submit_topic_for_rating)
         
         # Back button
         ctk.CTkButton(self.main_button_frame, text="Back to Main Menu", 
@@ -768,6 +773,38 @@ class ConversationAssistantGUI:
     def submit_topic_for_rating(self):
         topic = self.input_entry.get().strip()
         if topic:
+            # Get all existing topics to match against
+            all_topics = self.topic_manager.suggest_topics(show_all=True)
+            
+            # Match with existing topics
+            if all_topics:
+                # First check for exact match (case insensitive)
+                for existing_topic in all_topics:
+                    if existing_topic.lower() == topic.lower():
+                        print(f"Found exact match for topic: {existing_topic}")
+                        self.start_topic_rating(existing_topic)
+                        return
+                
+                # If no exact match, try semantic matching
+                input_words = normalize_text(topic)
+                best_score = 0.3  # Minimum threshold 
+                best_match = None
+                
+                for existing_topic in all_topics:
+                    topic_words = normalize_text(existing_topic)
+                    similarity = get_similarity_score(topic_words, input_words)
+                    
+                    if similarity > best_score:
+                        best_score = similarity
+                        best_match = existing_topic
+                
+                if best_match:
+                    print(f"Found similar topic: '{best_match}' (similarity: {best_score:.2f})")
+                    # Show user what the topic was matched to
+                    self.write_to_output(f"Matched to existing topic: '{best_match}'")
+                    topic = best_match
+            
+            # Start rating process with exact or matched topic
             self.start_topic_rating(topic)
     
     def start_topic_rating(self, topic):
@@ -779,15 +816,36 @@ class ConversationAssistantGUI:
         self.write_to_output(f"\nHow effective was discussing '{topic}' in stimulating conversation? (1-10)", clear=True)
         if tts_enabled:
             speak_text_async(f"How effective was this topic in stimulating conversation, on a scale of 1 to 10?")
+
+        # Organize rating buttons into two rows since it looks nicer
+        rating_frame1 = ctk.CTkFrame(self.action_button_frame)
+        rating_frame1.pack(fill=tk.X, pady=(5, 2))
+        rating_frame2 = ctk.CTkFrame(self.action_button_frame)
+        rating_frame2.pack(fill=tk.X, pady=(2, 5))
         
-        # Create buttons for ratings 1-10
-        rating_frame = ctk.CTkFrame(self.action_button_frame)
-        rating_frame.pack(fill=tk.X, pady=5)
-        
+        # Use different colors for different rating ranges
         for i in range(1, 11):
-            btn = ctk.CTkButton(rating_frame, text=str(i), 
-                           command=lambda r=i: self.submit_rating(r))
-            btn.pack(side=tk.LEFT, padx=2, expand=True)
+            if i <= 3:
+                button_color = "#E74C3C"  # Red for low ratings
+            elif i <= 7:
+                button_color = "#F39C12"  # Orange/yellow for medium ratings
+            else:
+                button_color = "#2ECC71"  # Green for high ratings
+                
+            # Choose the correct frame based on the value
+            parent_frame = rating_frame1 if i <= 5 else rating_frame2
+                
+            btn = ctk.CTkButton(parent_frame, text=str(i), 
+                          command=lambda r=i: self.submit_rating(r),
+                          fg_color=button_color,
+                          width=50)  # Set fixed width for consistent sizing
+            btn.pack(side=tk.LEFT, padx=5, expand=True)
+        
+        # Return to Main Menu button
+        ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                   command=self.show_main_menu,
+                   height=40,  # Make button taller
+                   font=ctk.CTkFont(size=14)).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
         
         # If voice is enabled, start listening for rating
         if self.voice_enabled:
@@ -799,19 +857,56 @@ class ConversationAssistantGUI:
             self.queue.put(("report_topic_rating", rating))
     
     def submit_rating(self, rating):
+        """Submit a rating for the current topic"""
+        print(f"Rating submitted: {rating} for topic: {self.selected_topic}")
+        
+        # Provide visual feedback
+        self.write_to_output(f"Submitting rating: {rating}/10...")
+        
+        # Put in queue and process immediately 
         self.queue.put(("report_topic_rating", rating))
+        
+        # Disable all rating buttons to prevent multiple submissions
+        for widget in self.action_button_frame.winfo_children():
+            if isinstance(widget, ctk.CTkFrame):  # This is our rating_frame
+                for button in widget.winfo_children():
+                    button.configure(state="disabled")
     
     def report_topic_rating(self, rating):
-        if rating:
-            matched_topic = self.topic_manager.add_topic_rating(self.selected_topic, rating)
-            
-            self.write_to_output(f"Recorded: {matched_topic} with effectiveness rating of {rating}/10", clear=True)
-            if tts_enabled:
-                speak_text_async(f"Thank you. I've recorded a rating of {rating} out of 10 for the topic: {matched_topic}")
-            
-            # Button to return to main menu
-            ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
-                     command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
+        """Process a rating for the currently selected topic"""
+        # FIRST: Clear the button frames to ensure new buttons are visible
+        self.clear_button_frames()
+        
+        if rating is not None:  # Changed from "if rating:" since 0 would fail this check
+            try:
+                # Debug output to trace the process
+                print(f"Processing rating: {rating} for topic: {self.selected_topic}")
+                
+                # Add the rating to the topic manager
+                matched_topic = self.topic_manager.add_topic_rating(self.selected_topic, rating)
+                
+                # Show confirmation to user
+                self.write_to_output(f"Recorded: {matched_topic} with effectiveness rating of {rating}/10", clear=True)
+                if tts_enabled:
+                    speak_text_async(f"Thank you. I've recorded a rating of {rating} out of 10 for the topic: {matched_topic}")
+                
+                # Button to return to main menu
+                ctk.CTkButton(self.main_button_frame, text="Return to Main Menu", 
+                         command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
+            except Exception as e:
+                # Add error handling
+                print(f"Error processing topic rating: {e}")
+                import traceback
+                traceback.print_exc()
+                self.write_to_output(f"Error saving rating: {str(e)}")
+                ctk.CTkButton(self.main_button_frame, text="Return to Main Menu",
+                             command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
+        else:
+            # Handle case where rating is None or invalid
+            print("Invalid rating value received")
+            self.write_to_output("Invalid rating provided. Please try again.")
+            ctk.CTkButton(self.main_button_frame, text="Return to Main Menu",
+                         command=self.show_main_menu).pack(side=tk.LEFT, padx=10)
     
     def view_top_topics(self):
         self.current_state = "view_top_topics"
@@ -875,24 +970,23 @@ class ConversationAssistantGUI:
         self.progress_label.configure(text=f"Recording: {current_sec}/{total_sec}s")
 
     def show_settings(self):
-        """Show a dialog with settings options"""
-        settings_window = ctk.CTkToplevel(self.root)
-        settings_window.title("Settings")
-        settings_window.geometry("500x300")
-        settings_window.transient(self.root)  # Make the window modal
-        settings_window.grab_set()  # Make the window modal
+        """Show settings as a frame in the main UI"""
+        # Clear current UI
+        self.current_state = "settings"
+        self.clear_button_frames()
+        self.input_frame.pack_forget()
         
-        # Create a frame for settings
-        settings_frame = ctk.CTkFrame(settings_window)
-        settings_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        # Store the current appearance state to restore later if canceled
+        original_duration = self.recording_duration
         
+        # Create settings directly in the action_button_frame
         # Title
-        ctk.CTkLabel(settings_frame, text="Settings", 
+        ctk.CTkLabel(self.action_button_frame, text="Settings", 
                    font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
         
         # Recording duration settings
-        duration_frame = ctk.CTkFrame(settings_frame)
-        duration_frame.pack(fill=tk.X, pady=10)
+        duration_frame = ctk.CTkFrame(self.action_button_frame)
+        duration_frame.pack(fill=tk.X, pady=10, padx=20)
         
         ctk.CTkLabel(duration_frame, text="Recording Duration (seconds):").pack(side=tk.LEFT, padx=10)
         
@@ -902,31 +996,53 @@ class ConversationAssistantGUI:
         
         # Slider for duration
         duration_slider = ctk.CTkSlider(
-            settings_frame, 
+            self.action_button_frame, 
             from_=15, 
             to=120,
             number_of_steps=21,  # 15, 20, 25, ... 120
             command=lambda value: duration_value_label.configure(text=str(int(value)))
         )
-        duration_slider.pack(fill=tk.X, padx=20, pady=5)
+        duration_slider.pack(fill=tk.X, padx=40, pady=5)
         duration_slider.set(self.recording_duration)
+        
+        # Button frame for Save/Cancel
+        button_frame = ctk.CTkFrame(self.action_button_frame)
+        button_frame.pack(fill=tk.X, pady=20, padx=20)
         
         # Save button
         save_button = ctk.CTkButton(
-            settings_frame,
+            button_frame,
             text="Save Settings",
-            command=lambda: self.save_settings(
-                settings_window,
-                int(duration_slider.get())
-            )
+            command=lambda: self.save_inline_settings(int(duration_slider.get())),
+            fg_color="#2ECC71"  # Green
         )
-        save_button.pack(pady=20)
+        save_button.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
+        
+        # Cancel button 
+        cancel_button = ctk.CTkButton(
+            button_frame,
+            text="Cancel",
+            command=lambda: self.cancel_settings(original_duration),
+            fg_color="#E74C3C"  # Red
+        )
+        cancel_button.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
+        
+        # Show explanation
+        self.write_to_output("Settings", clear=True)
+        self.write_to_output("\nAdjust the recording duration for conversation listening.")
+        self.write_to_output("\nA longer duration allows for more conversation to be captured,")
+        self.write_to_output("while a shorter duration may be better for brief exchanges.")
 
-    def save_settings(self, window, duration):
-        """Save the settings and close the window"""
+    def save_inline_settings(self, duration):
+        """Save the settings and return to main menu"""
         self.recording_duration = duration
         print(f"Recording duration set to {duration} seconds")
-        window.destroy()
+        self.show_main_menu()
+
+    def cancel_settings(self, original_duration):
+        """Cancel settings changes and return to main menu"""
+        self.recording_duration = original_duration  # Restore original value
+        self.show_main_menu()
 
     def cleanup_resources(self):
         """Clean up any resources that need explicit management"""

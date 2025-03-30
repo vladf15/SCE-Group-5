@@ -1,4 +1,22 @@
 {
-  "ratings": {},
-  "history": []
+  "ratings": {
+    "Family traditions from youth": [
+      7
+    ],
+    "Favourite places to visit in the past": [
+      7
+    ]
+  },
+  "history": [
+    {
+      "topic": "Family traditions from youth",
+      "effectiveness": 7,
+      "timestamp": "2025-03-30T12:14:51.670681"
+    },
+    {
+      "topic": "Favourite places to visit in the past",
+      "effectiveness": 7,
+      "timestamp": "2025-03-30T15:11:22.635672"
+    }
+  ]
 }
