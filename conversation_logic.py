@@ -148,7 +148,7 @@ recognizer.pause_threshold = 2  # Seconds of silence before considering the phra
 
 #Conversation topic categories
 ALZHEIMERS_TOPIC_CATEGORIES = [
-    "Art events from the 90s",
+    "Art events from the 80s",
     "Political state of the world in your youth",
     "How has technology changed the way we communicate?",
     "Family traditions from youth",
@@ -374,17 +374,31 @@ def listen_to_conversation(duration=60):
         recognizer.energy_threshold = 200  # Keep same sensitivity as other functions
         
         start_time = time.time()  # Track when we started recording
+        recording_complete = False  # Flag to track if recording is complete
         
         print(f"Now listening with overlapping chunks for {duration} seconds...")
         
         # Record in overlapping chunks to improve recognition quality
         for i in range(num_chunks):
+            # Stop immediately if we've already flagged the recording as complete
+            if recording_complete:
+                print("Recording already completed, skipping remaining chunks")
+                break
+                
             # Calculate chunk start and end times
             chunk_start = i * chunk_advance
             chunk_end = min(chunk_start + chunk_size, duration)
             
             # Skip if this chunk would start after the duration
             if chunk_start >= duration:
+                recording_complete = True
+                break
+            
+            # Check if we've already exceeded the total recording time
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= duration:
+                print(f"Total recording duration of {duration}s reached, stopping...")
+                recording_complete = True
                 break
             
             # Calculate how long to wait before starting this chunk's recording
@@ -392,6 +406,12 @@ def listen_to_conversation(duration=60):
             if wait_time > 0:
                 print(f"Waiting {wait_time:.1f}s until next chunk...")
                 time.sleep(wait_time)
+                
+                # Check again if we've exceeded duration while waiting
+                if time.time() - start_time >= duration:
+                    print(f"Duration exceeded while waiting, stopping...")
+                    recording_complete = True
+                    break
             
             # Calculate actual duration for this chunk
             current_chunk_duration = chunk_end - chunk_start
@@ -403,6 +423,10 @@ def listen_to_conversation(duration=60):
             audio = recognizer.record(source, duration=current_chunk_duration)
             chunk_actual_start = time.time() - start_time
             
+            # Check one more time if we've exceeded the duration
+            if time.time() - start_time >= duration:
+                recording_complete = True
+                
             try:
                 # Process this chunk
                 text = recognizer.recognize_google(audio)
@@ -420,6 +444,11 @@ def listen_to_conversation(duration=60):
                 print(f"⚠ No speech detected in chunk {i+1}")
             except sr.RequestError as e:
                 print(f"⚠ Google Speech API error in chunk {i+1}: {e}")
+                
+            # Final check after processing - have we exceeded our time?
+            if time.time() - start_time >= duration:
+                print("Total duration reached after processing chunk, stopping...")
+                recording_complete = True
     
     # Process all segments in order
     ordered_segments = sorted(all_segments.items())
